@@ -59,6 +59,8 @@ jobs:
         uses: terraform-linters/setup-tflint@v4
 
       - name: Init TFLint
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: tflint --init
 
       - name: Run TFLint
@@ -106,21 +108,26 @@ jobs:
 
       - name: Comment Plan on PR
         uses: actions/github-script@v7
+        env:
+          PLAN_OUTPUT: ${{ steps.plan.outputs.stdout }}
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
           script: |
-            const output = `#### Terraform Plan 📖
-            \`\`\`
-            ${{ steps.plan.outputs.stdout }}
-            \`\`\`
-
-            *Triggered by @${{ github.actor }} via \`${{ github.event_name }}\`*`;
+            const plan = process.env.PLAN_OUTPUT || 'No output';
+            const body = [
+              '#### Terraform Plan',
+              '```',
+              plan,
+              '```',
+              '',
+              `*Triggered by @${{ github.actor }} via \`${{ github.event_name }}\`*`
+            ].join('\n');
 
             github.rest.issues.createComment({
               issue_number: context.issue.number,
               owner: context.repo.owner,
               repo: context.repo.repo,
-              body: output
+              body: body
             });
 
       - name: Plan Status
